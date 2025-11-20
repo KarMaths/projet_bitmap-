@@ -1,7 +1,9 @@
 import java.awt.Color;
-
-//import java.io.PrintWriter;
-//import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import javax.imageio.ImageIO;
 
 /**
  * Classe representant un R-Quadtree pour la compression d'images
@@ -32,9 +34,9 @@ public class RQuadtree {
             this.isLeaf = false; 
         }
     }
-    
-    private Node root; // racine de l'arbre 
-    private int size;  // taille du RQuadtree 
+    // racine et taille du RQuadtree 
+    private Node root;  
+    private int size;  
 
     /**
      * Constructeur: construit le R-Quadtree a partir d'une image
@@ -48,6 +50,179 @@ public class RQuadtree {
         // construction de l'arbre recursivement 
         this.root = buildTree(image,0,0, size);
     }
+
+        /**
+     * Conversion du R-quadtree en objet ImagePNG 
+     * Complexité : O(size²) pour créer et remplir l'image
+     * @return imagePNG reconstituée à partir de l'arbre
+     */
+    public ImagePNG toPNG() {
+        try {
+            // Créer une BufferedImage vide de la bonne taille
+            BufferedImage buffImg = new BufferedImage( size, size, java.awt.image.BufferedImage.TYPE_INT_RGB);
+            
+            // Initialiser tous les pixels en noir (ou n'importe quelle couleur)
+            for (int i = 0; i < size; i++) {
+                for (int j = 0; j < size; j++) {
+                    buffImg.setRGB(i, j, Color.BLACK.getRGB());
+                }
+            }
+            
+            // Sauvegarder temporairement dans un fichier unique
+            String tempFileName = "temp_quadtree_" + System.currentTimeMillis() + ".png";
+            File tempFile = new File(tempFileName);
+            ImageIO.write(buffImg, "png", tempFile);
+            
+            // Charger via ImagePNG
+            ImagePNG img = new ImagePNG(tempFileName);
+            
+            // Remplir l'image récursivement à partir de l'arbre
+            toPNG_Rec(img, root, 0, 0, size);
+            
+            // Nettoyer le fichier temporaire
+            tempFile.delete();
+            
+            
+            return img;  
+        } catch (Exception e) {
+            System.err.println("Erreur" + e.getMessage());
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    // Représentation textuelle parenthésée
+    @Override
+    public String toString() {
+        return toStringRec(root);
+    }
+
+    /**
+     * Compression a qualite controlee avce 0 < lambda < 255
+     * @param Lambda
+     */
+    public void compressLambda(int Lambda) {
+        root = compressLambdaRec(root, Lambda);
+    }
+
+    /**
+     * Compression a poids crontrole avec Phi > 0
+     * @param Phi
+    */
+    public void compressPhi(int Phi){
+        // Compter le nombre actuel de feuilles
+        int currentLeaves =  countLeaf(root);
+        
+        // si il y a deja moins de feuilles que phi, on fait rien 
+        if(currentLeaves <= Phi){
+            return;
+        }
+        
+        //Trouver la "sur-feuille" avec la plus petite dégradation X
+        //compression iterative jusqu'a atteindre phi feuille
+        while (currentLeaves > Phi) {
+            SurFeuille best = BestSurfeuille(root);
+
+            if(best ==null){
+                break;
+            }
+            //Elaguage de l'arbre (cette sur-feuille) 
+            root = Elarguage(root, best);
+            // chaque elarguage reduit de 3 feuilles (4 feuilles -> 1 feuille)
+            currentLeaves -= 3; //Mettre à jour le nombre de feuilles (diminue de 3)
+        }  
+    }
+
+
+    // Classe interne representant une sur-feuille 
+    private class SurFeuille {
+        Node parent;
+        double degradation;
+        Color avgColor;
+
+        SurFeuille(Node parent, double deg, Color col){
+            this.parent = parent; 
+            this.degradation = deg; 
+            this.avgColor = col; 
+        }
+    }
+
+    /**
+     * Methode permettant de recherche la sur-feuille avec la plus petite 
+     * dégradation de luminance dans tout l'arbre.
+     * @param node
+     * @return
+     */
+    private SurFeuille BestSurfeuille(Node node){
+        if(node == null || node.isLeaf){
+            return null;
+        }
+
+        // Verifier si ce noeud est une sur-feuille 
+        if(node.no.isLeaf && node.ne.isLeaf && node.se.isLeaf && node.so.isLeaf){
+            // calcul de la couleur moyenne
+            Color avgColor = CouleurMoyenne(node.no.color, node.ne.color,node.se.color, node.so.color);
+
+            // calcul la luminance moyenne 
+            double avglum = luminance(avgColor); 
+
+            // La dégradation mesure a quel point on perd de la qualite en remplaçant les 4 couleurs par leur moyenne.
+            double maxDeg = 0; 
+            maxDeg = Math.max(maxDeg, Math.abs(avglum - luminance(node.no.color)));
+            maxDeg = Math.max(maxDeg, Math.abs(avglum - luminance(node.ne.color)));
+            maxDeg = Math.max(maxDeg, Math.abs(avglum - luminance(node.se.color)));
+            maxDeg = Math.max(maxDeg, Math.abs(avglum - luminance(node.so.color)));
+
+            return new SurFeuille(node, maxDeg, avgColor);
+        }
+
+        //cherche recursivement dans les sous-arbres 
+        SurFeuille best = null;
+        // NO
+        SurFeuille noResultat = BestSurfeuille(node.no);
+        if(noResultat != null && (best == null || noResultat.degradation < best.degradation)){
+            best = noResultat;
+        }
+        // NE
+        SurFeuille neResultat = BestSurfeuille(node.ne);
+        if(neResultat != null && (best == null || neResultat.degradation < best.degradation)){
+            best = neResultat;
+        }
+        // SE
+        SurFeuille seResultat = BestSurfeuille(node.se);
+        if(seResultat != null && (best == null || seResultat.degradation < best.degradation)){
+            best = seResultat; 
+        }
+        // SO
+        SurFeuille soResultat = BestSurfeuille(node.so);
+        if(soResultat != null && (best == null || soResultat.degradation < best.degradation)){
+            best = soResultat;
+        }
+
+        return best; 
+    }
+
+    // Elarguer un noeud specifique (le transformer en une feuille)
+    private Node Elarguage(Node node, SurFeuille surFe){
+        if(node == null) return null;
+
+        // si on  trouve  le noeud a elarguer 
+        if(node == surFe.parent){
+            return new Node (surFe.avgColor);
+        }
+
+        //sinon, continuer la rechercher dans les sous-arbres
+        if(!node.isLeaf){
+            node.no = Elarguage(node.no, surFe);
+            node.ne = Elarguage(node.ne, surFe);
+            node.se = Elarguage(node.se, surFe);
+            node.so = Elarguage(node.so, surFe);
+        }
+        return node;
+    }
+    
+    
+    //----------METHODES RECURSIVES ASSOCIEES AUX FONCTIONNALITES DE RQuadtree ------------------------
 
     /**
      * construire l'arbre recursivement a partir de l'image 
@@ -72,7 +247,7 @@ public class RQuadtree {
         Node no = buildTree(image, x, y, halfSize);
         Node ne = buildTree(image, x + halfSize, y, halfSize);
         Node se = buildTree(image, x + halfSize, y + halfSize, halfSize);
-        Node so = buildTree(image, x , y + halfSize, taille);
+        Node so = buildTree(image, x , y + halfSize, halfSize);
         
 
         // verifier si tous les enfants sont des feuilles
@@ -83,22 +258,43 @@ public class RQuadtree {
         return new Node(no, ne, so, se);
     }
 
-    /**
-     * Calcule la luminance selon la formule 
-     * L = 0.2126*R + 0.7152*G + 0.0722*B
-     * @param color
-     * @return
+     /**
+     * Méthode récursive pour remplir l'image à partir du R-Quadtree
+     * @param img L'image à remplir
+     * @param node Le nœud courant
+     * @param x Coordonnée x du coin supérieur gauche de la région
+     * @param y Coordonnée y du coin supérieur gauche de la région
+     * @param taille Taille de la région carrée
      */
-    private double luminance(Color color){
-        return 0.2126*color.getRed() + 0.7152*color.getGreen() + 0.0722*color.getBlue();
-    }
+    private void toPNG_Rec(ImagePNG img, Node node, int x, int y, int taille) {
+        if (node == null) return;
 
-    /**
-     * Compression a qualite controlee avce 0 < lambda < 255
-     * Complexite a indiquer.
-     * */ 
-    public void compressLambda(int Lambda) {
-        root = compressLambdaRec(root, Lambda);
+        // Cas de base : nœud feuille
+        if (node.isLeaf) {
+            // Remplir toute la région avec la couleur du nœud
+            for (int i = x; i < x + taille; i++) {
+                for (int j = y; j < y + taille; j++) {
+                    img.setPixel(i, j, node.color);
+                }
+            }
+            return;
+        }
+        
+        // Cas récursif : nœud interne
+        // Diviser la région en 4 quadrants
+        int halfSize = taille / 2;
+        
+        // Nord-Ouest (NO): coin supérieur gauche
+        toPNG_Rec(img, node.no, x, y, halfSize);
+        
+        // Nord-Est (NE): coin supérieur droit
+        toPNG_Rec(img, node.ne, x + halfSize, y, halfSize);
+        
+        // Sud-Est (SE): coin inférieur droit
+        toPNG_Rec(img, node.se, x + halfSize, y + halfSize, halfSize);
+        
+        // Sud-Ouest (SO): coin inférieur gauche
+        toPNG_Rec(img, node.so, x, y + halfSize, halfSize);
     }
 
     /**
@@ -106,7 +302,7 @@ public class RQuadtree {
      * @param node
      * @param lambda
      * @return
-     */
+    */
     private Node compressLambdaRec(Node node, int lambda){
         if (node == null || node.isLeaf){
             return node;
@@ -135,131 +331,11 @@ public class RQuadtree {
                 return new Node(avgColor);
             }
         }
-        
         return node;    
     }
-
     
-    private class SurFeuille {
-        Node parent;
-        double degradation;
-        Color avgColor;
-
-        SurFeuille(Node parent, double deg, Color col){
-            this.parent = parent; 
-            this.degradation = deg; 
-            this.avgColor = col; 
-        }
-    
-    }
-
-    public void compressPhi(int Phi){
-        // Compter le nombre actuel de feuilles
-        int currentLeaves =  countLeaf(root);
-        
-        // si il y a deja moins de feuilles que phi, on fait rien 
-        if(currentLeaves <= Phi){
-            return;
-        }
-        
-        //Trouver la "sur-feuille" avec la plus petite dégradation X
-        //compression iterative jusqu'a atteindre phi feuille
-        while (currentLeaves > Phi) {
-            SurFeuille best = BestSurfeuille(root);
-
-            if(best ==null){
-                break;
-            }
-            //Élaguer cette sur-feuille 
-            root = noeud(root, best);
-            // chaque elarguage reduit de 3 feuilles (4 feuilles -> 1 feuille)
-            currentLeaves -= 3; //Mettre à jour le nombre de feuilles (diminue de 3)
-        }  
-    }
-
-
-    private SurFeuille BestSurfeuille(Node node){
-        if(node == null || node.isLeaf){
-            return null;
-        }
-
-        // Verifier si ce noeud est une sur-feuille 
-        if(node.no.isLeaf && node.ne.isLeaf && node.se.isLeaf && node.so.isLeaf){
-            // calcul la degradation 
-            Color avgColor = CouleurMoyenne(node.no.color, node.ne.color,node.se.color, node.so.color);
-            double avglum = luminance(avgColor); 
-
-            double maxDeg = 0; 
-            maxDeg = Math.max(maxDeg, Math.abs(avglum - luminance(node.no.color)));
-            maxDeg = Math.max(maxDeg, Math.abs(avglum - luminance(node.ne.color)));
-            maxDeg = Math.max(maxDeg, Math.abs(avglum - luminance(node.se.color)));
-            maxDeg = Math.max(maxDeg, Math.abs(avglum - luminance(node.so.color)));
-
-            return new SurFeuille(node, maxDeg, avgColor);
-        }
-
-        //cherche recursivement dans les sous-arbres 
-        SurFeuille best = null;
-
-        SurFeuille noResultat = BestSurfeuille(node.no);
-        if(noResultat != null && (best == null || noResultat.degradation < best.degradation)){
-            best = noResultat;
-        }
-
-        SurFeuille neResultat = BestSurfeuille(node.ne);
-        if(neResultat != null && (best == null || neResultat.degradation < best.degradation)){
-            best = neResultat;
-        }
-
-        SurFeuille seResultat = BestSurfeuille(node.se);
-        if(seResultat != null && (best == null || seResultat.degradation < best.degradation)){
-            best = seResultat; 
-        }
-
-        SurFeuille soResultat = BestSurfeuille(node.so);
-        if(soResultat != null && (best == null || soResultat.degradation < best.degradation)){
-            best = soResultat;
-        }
-
-        return best; 
-    }
-
-    // Elarguer un noeud specifique (le transformer en une feuille)
-    private Node noeud(Node node, SurFeuille surFe){
-        if(node == null) return null;
-
-        // si on  trouve  le noeud a elarguer 
-        if(node == surFe.parent){
-            return new Node (surFe.avgColor);
-        }
-
-        //sinon, continuer la rechercher dans les sous-arbres
-        if(!node.isLeaf){
-            node.no = noeud(node.no, surFe);
-            node.ne = noeud(node.ne, surFe);
-            node.se = noeud(node.se, surFe);
-            node.so = noeud(node.so, surFe);
-        }
-        return node;
-    }
-    
-    /**
-     *  Conversion du R-quadtree en objet ImagePNG 
-     *  Complexite : O(L*H) pour remplir l'image.
-     *  */
-    public ImagePNG toPNG() {
-        ImagePNG img = null; 
-        return img;
-    }
-
-    // Représentation textuelle parenthésée 
-    @Override
-    public String toString() {
-        return toStringRec(root);
-    }
-
     private String toStringRec(Node node){
-        if(node == null) return " ";
+        if(node == null) return " ())";
         if(node.isLeaf){
             return ImagePNG.colorToHex(node.color);
         }
@@ -270,7 +346,18 @@ public class RQuadtree {
 
     }
 
-    // FONCTIONS UTILITAIRES
+    // ******** METHODES UTILITAIRES *****************
+
+    /**
+     * Calcule la luminance selon la formule 
+     * L = 0.2126*R + 0.7152*G + 0.0722*B
+     * @param color
+     * @return
+     */
+    private double luminance(Color color){
+        return 0.2126*color.getRed() + 0.7152*color.getGreen() + 0.0722*color.getBlue();
+    }
+
     private boolean sameColor(Color c1, Color c2){
         return c1.getRed() == c2.getRed() &&
                c1.getGreen() == c2.getGreen() &&
@@ -308,4 +395,21 @@ public class RQuadtree {
         return countLeaf(root);
     }
 
+    public List<Color> nbCouleur(){
+        List<Color> colors = new ArrayList<>();
+        compterCouleurs(root, colors);
+        return colors; 
+    }
+
+    private void compterCouleurs(Node node, List<Color> colors){
+        if(node == null) return;
+        if(node.isLeaf){
+            colors.add(node.color);
+        } else {
+            compterCouleurs(node.no, colors);
+            compterCouleurs(node.ne, colors);
+            compterCouleurs(node.se, colors);
+            compterCouleurs(node.so, colors);
+        }   
+    }
 }

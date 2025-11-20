@@ -4,12 +4,6 @@ import java.io.File;
 import java.io.PrintWriter;
 import java.util.Scanner;
 
-/*
- * Programme princial 
- */
-/*public class Main {
-    private static Scanner scanner =  new Scanner()
-}
 
 /**
  * Programme principal avec menu interactif et mode batch
@@ -18,7 +12,9 @@ public class Main {
     
     private static Scanner scanner = new Scanner(System.in);
     private static RQuadtree currentTree = null;
-    //private static AVL currentAVL = null;
+    private static AVL currentAVL = null;
+    
+    
     
     public static void main(String[] args) {
         // Mode non-interactif (ligne de commande)
@@ -40,42 +36,86 @@ public class Main {
             int param = Integer.parseInt(args[2]);
             
             System.out.println("=== Mode Batch ===");
-            System.out.println("Fichier: " + inputFile);
-            System.out.println("Méthode: " + method);
-            System.out.println("Paramètre: " + param);
+            System.out.println("Fichier entré   : " + inputFile);
+            System.out.println("Méthode         : " + method);
+            System.out.println("Paramètre       : " + param);
+            System.out.println();
             
-            // Charger l'image
+            // 1. Charger l'image
             ImagePNG img = new ImagePNG(inputFile);
-            System.out.println("Image chargée: " + img.width() + "x" + img.height());
+            System.out.println("Image chargée   : " + img.width() + "x" + img.height() + " pixels ");
             
-            // Construire le R-Quadtree
+            // 2. Construire le R-Quadtree
             RQuadtree tree = new RQuadtree(img);
             System.out.println("R-Quadtree construit avec " + tree.getLeafCount() + " feuilles");
             
-            // Appliquer la compression
+            // 3. Appliquer la compression
+            System.out.println();
+            System.out.println("--- Application de la compression ---");
             if (method.equalsIgnoreCase("Lambda")) {
                 tree.compressLambda(param);
+                System.out.println ("Compression lambda appliquée avec λ=" + param + ") ");
             } else if (method.equalsIgnoreCase("Phi")) {
                 tree.compressPhi(param);
+                System.out.println ("Compression Phi appliquée avec Φ=" + param + ") ");
+
             } else {
                 System.err.println("Méthode inconnue. Utiliser Lambda ou Phi");
                 return;
             }
-            System.out.println("Compression appliquée. Nouvelles feuilles: " + tree.getLeafCount());
+            System.out.println("Nombre de feuilles après compression :" + tree.getLeafCount());
             
-            // TODO: Générer les fichiers de sortie
-            // 1. Image compressée: <inputFile>_compressed.png
-            // 2. Représentation R-Quadtree: <inputFile>_tree.txt
-            // 3. Représentation AVL: <inputFile>_avl.txt
+            // 4. Générer les fichiers de sortie
+            System.out.println("\n---Fichiers générés ---");
+
+            // Extraire le nom de base du fichier 
+            String nomDeBase = inputFile.replaceAll("\\.png$", "");
+            String methodLower = method.toLowerCase();
+
+            // 4.1. Image compressée: <inputFile>.png
+            String FichierImgCompressee = nomDeBase + "_" + methodLower + param + ".png";
+            ImagePNG imgCompressee = tree.toPNG();
+            if( imgCompressee != null ){
+                imgCompressee.save(FichierImgCompressee);
+                System.out.println("- Image compressée :    " + FichierImgCompressee);
+            } else {
+                System.err.println(" Erreur ");
+            }
+
+            // 4.2. Représentation R-Quadtree: <inputFile>_R.txt
+            String FichierTree = nomDeBase + "_" + methodLower + param + "R.txt";
+            PrintWriter ecrireTree = new PrintWriter(FichierTree);
+            ecrireTree.println(tree.toString());
+            ecrireTree.close();
+            System.out.println("- Arbre R-Quadtree :    " + FichierTree);
+
+            // 4.3. Représentation AVL: <inputFile>_AVL.txt
+            String FichierAVL = nomDeBase + "_" + methodLower + param + "AVL.txt";
+            AVL avl = new AVL(tree);
+            PrintWriter ecrireAVL = new PrintWriter(FichierAVL);
+            ecrireAVL.println(avl.toString());
+            ecrireAVL.close();
+            System.out.println("- Arbre AVL        :    " + FichierAVL);
+
+            // 5. Calculer et afficher les metriques de comparaison 
+            System.out.println("\n---Metrique de qualité--- ");
+
+                //5.1. Qualité (EQM - Ecart Quadratique Moyen ) Pourcentage de similarite
+                double eqm = ImagePNG.computeEQM(img, imgCompressee);
+                System.out.println("Qualité (EQM) " + eqm);
+
+                // 5.2 - Ratio de poids des fichiers PNG
+                File ficOriginel = new File(inputFile);
+                File ficCompressee = new File(FichierImgCompressee);
+                double ratioTaille = Math.ceil(10000.0 * ficCompressee.length()/ficOriginel.length())/100.0;
+                System.out.println("Ratio de poids : " + ratioTaille + "%");
+
             
-            // TODO: Afficher les métriques de comparaison
-            // - Ratio de poids des fichiers PNG
-            // - EQM (qualité)
-            
-            System.out.println("\nFichiers générés:");
-            System.out.println("  - Image compressée (TODO)");
-            System.out.println("  - Arbre R-Quadtree (TODO)");
-            System.out.println("  - Arbre AVL (TODO)");
+            //  Informations srpplementaires sur les fichiers
+            System.out.println("\n---Tailles des fichiers---");
+            System.out.println("Fichier Originel:   " + ficOriginel.length()+ " octets");
+            System.out.println("Ficher Compressé:   " + ficCompressee.length()+ " octets");
+            System.out.println("Economie:   " + (ficOriginel.length() - ficCompressee.length()) + " octets");
             
         } catch (Exception e) {
             System.err.println("Erreur: " + e.getMessage());
@@ -86,6 +126,7 @@ public class Main {
     /**
      * Mode interactif avec menu
      */
+   
     private static void interactiveMode() {
         System.out.println("=== Compression d'Images par R-Quadtree ===");
         
@@ -113,7 +154,7 @@ public class Main {
                     case 6:
                         comparePNGFiles();
                         break;
-                    /*case 7:
+                    case 7:
                         buildAVLFromImage();
                         break;
                     case 8:
@@ -130,7 +171,7 @@ public class Main {
                         break;
                     case 12:
                         removeColorFromAVL();
-                        break;*/
+                        break;
                     case 0:
                         System.out.println("Au revoir!");
                         return;
@@ -254,7 +295,7 @@ public class Main {
         System.out.println("  Ratio de poids: " + ratio + "%");
     }
     
-    /*private static void buildAVLFromImage() throws Exception {
+    private static void buildAVLFromImage() throws Exception {
         scanner.nextLine();
         System.out.print("Nom du fichier PNG: ");
         String filename = scanner.nextLine();
@@ -295,7 +336,7 @@ public class Main {
         System.out.print("Couleur en hexadécimal (ex: ff0000 pour rouge): ");
         String hex = scanner.nextLine();
         Color color = ImagePNG.hexToColor(hex);
-        boolean found = currentAVL.search(color);
+        boolean found = currentAVL.searchAVL(color);
         System.out.println(found ? "Couleur trouvée" : "Couleur non trouvée");
     }
     
@@ -323,6 +364,6 @@ public class Main {
         Color color = ImagePNG.hexToColor(hex);
         currentAVL.remove(color);
         System.out.println("Couleur supprimée");
-    }*/
+    }
 }
 
