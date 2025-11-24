@@ -120,7 +120,7 @@ public class AVL {
         if(compare > 0){
             node.right = addRecursivement(node.right, col);
         }
-        if(compare < 0){
+        else if(compare < 0){
             node.left = addRecursivement(node.left, col);
         } else{
             // Couleur deja presente, RAF
@@ -151,7 +151,7 @@ public class AVL {
             node.right = removeRecursive(node.right, col);
         } else {
             // Noeud a supprimer trouve
-            if(node.left != null || node.right != null){
+            if(node.left == null || node.right == null){
                 node = (node.left != null) ? node.left : node.right;
             } else{
                 //Noeud avec 2 enfants, trouver le successeur 
@@ -188,33 +188,38 @@ public class AVL {
     // -------------- Fonctions utlitaires------------------------------------
 
     private Node RebalancerAVL(Node node, Color col){
-        int balance = getBalance(node);
-        // ------Rotations------- 
-        // rotation vers la gauche 
-        if( balance > 1 && compareColors(col, node.right.color) > 0){
-            return rotationVersGauche(node);
-        }
-
-        // Double Rotation vers la gauche (droite-gauche)
-        if( balance > 1 && compareColors(col, node.right.color) < 0){
-            node.right = rotationVersDroite(node);
-            return rotationVersGauche(node);
-        }
-
-        // Rotation vers la droite 
-        if( balance < -1 && compareColors(col, node.left.color) < 0 ){
-            return rotationVersDroite(node);
-        }
-
-        // Double rotation vers la droite (gauche-droite)
-        if(balance < -1 && compareColors(col, node.left.color) > 0){
-            node.left = rotationVersGauche(node.left);
-            return rotationVersDroite(node);
-        }
-        return node; 
+    if(node == null) return null;
+    
+    int balance = getBalance(node);
+    
+    // Cas Gauche-Gauche: rotation droite simple
+    if(balance < -1 && node.left != null && getBalance(node.left) <= 0){
+        return rotationVersDroite(node);
+    }
+    
+    // Cas Gauche-Droite: double rotation
+    if(balance < -1 && node.left != null && getBalance(node.left) > 0){
+        node.left = rotationVersGauche(node.left);
+        return rotationVersDroite(node);
+    }
+    
+    // Cas Droite-Droite: rotation gauche simple
+    if(balance > 1 && node.right != null && getBalance(node.right) >= 0){
+        return rotationVersGauche(node);
+    }
+    
+    // Cas Droite-Gauche: double rotation
+    if(balance > 1 && node.right != null && getBalance(node.right) < 0){
+        node.right = rotationVersDroite(node.right);
+        return rotationVersGauche(node);
+    }
+    
+    return node;
     } 
 
     private Node rotationVersDroite(Node y){
+        if(y ==null || y.left == null) return y; 
+
         Node x = y.left;
         Node z = x.right;
 
@@ -228,6 +233,7 @@ public class AVL {
     }
 
     private Node rotationVersGauche(Node x){
+        if(x == null || x.right == null) return x; 
         Node y = x.right;
         Node z = y.left;
         

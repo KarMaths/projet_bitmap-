@@ -14,14 +14,14 @@ public class RQuadtree {
     // Classe interne pour representer un noeud de l'arbre 
     private class Node{
         Color color;
-        Node no, ne, so, se; 
+        Node no, ne, se, so; 
         Boolean isLeaf;
 
         // Constructueur d'une feuille 
         Node (Color c){
             this.color = c; 
             this.isLeaf = true;
-            this.no = this.ne = this.so = this.se = null;
+            this.no = this.ne = this.se = this.so = null;
         }
 
         // Constructeur pour un noeud interne
@@ -40,12 +40,17 @@ public class RQuadtree {
 
     /**
      * Constructeur: construit le R-Quadtree a partir d'une image
+     * Complexite:  O(n^2 log(n)) pire des ces 
+     *              O(n^2) meilleur des cas (avec l'optimisation de fusion)
+     *              avec n = largeur/hauteur de l'image et log(n): hauteur de l'arbre 
      * @param image
      */
     public RQuadtree(ImagePNG image) { 
         this.size = image.width();
         // Verifier que la taille est une puissance de 2 
-        if (!isPowerOfTwo(size) || (size != image.height())) {}
+        if (!isPowerOfTwo(size) || (size != image.height())) {
+        return; 
+        }
         
         // construction de l'arbre recursivement 
         this.root = buildTree(image,0,0, size);
@@ -53,7 +58,7 @@ public class RQuadtree {
 
         /**
      * Conversion du R-quadtree en objet ImagePNG 
-     * Complexité : O(size²) pour créer et remplir l'image
+     * Complexité : O(n^2) pour créer et remplir l'image
      * @return imagePNG reconstituée à partir de l'arbre
      */
     public ImagePNG toPNG() {
@@ -138,7 +143,7 @@ public class RQuadtree {
     private class SurFeuille {
         Node parent;
         double degradation;
-        Color avgColor;
+        Color avgColor;     //couleur moyenne 
 
         SurFeuille(Node parent, double deg, Color col){
             this.parent = parent; 
@@ -250,12 +255,12 @@ public class RQuadtree {
         Node so = buildTree(image, x , y + halfSize, halfSize);
         
 
-        // verifier si tous les enfants sont des feuilles
+        // verifier si tous les enfants sont des feuilles et ont la meme couleurs  
         if(no.isLeaf && ne.isLeaf && so.isLeaf && se.isLeaf && 
             sameColor(no.color, ne.color) && sameColor(ne.color, so.color) && sameColor(so.color, se.color)){
                 return new Node(no.color);
         }
-        return new Node(no, ne, so, se);
+        return new Node(no, ne, se, so);
     }
 
      /**
