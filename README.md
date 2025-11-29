@@ -129,3 +129,8 @@ Ce projet implémente un système de compression d'images bitmap utilisant des s
 - Luminance: L = 0.2126*R + 0.7152*G + 0.0722*B
 - Couleur moyenne: (R1+R2+R3+R4)/4, (G1+G2+G3+G4)/4, (B1+B2+B3+B4)/4
 - Dégradation: X = max(|Lm - Li|) pour i=1,2,3,4
+
+
+## Tests fait sur 2 image differents 
+1) i.png 
+2) 64-tuxette_lambda20.png
