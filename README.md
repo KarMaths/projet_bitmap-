@@ -21,44 +21,89 @@ Ce projet implémente un système de compression d'images bitmap utilisant des s
 |-- test_images/           # Images de test PNG
 |__ README.md              # Ce fichier
 
-##  Compilation
+##  Compilation et Execution mode Batch
+      # COMPILATION
+      javac -source 1.8 -target 1.8 -d /JeanAbakar/bin /JeanAbakar/src/*.java
+            ou (si on est dans le dossier JeanAbakar ie cd JeanAbakar)
+      javac -source 1.8 -target 1.8 -d bin src/*.java 
+            ou
+      javac -d bin src/*.java
 
-**bash
-javac -source 1.8 -target 1.8 -d /JeanAbakar/bin /JeanAbakar/src/*.java
-
-
-##  Exécution
-cd test_image && java -cp ../bin Main 64-tuxette.png lambda 20
+##  Exécution Batch
+      java -classpath bin/ Main 64-tuxette.png lambda 20 [ Conseillé ]
+         ou
+      cd test_image && java -cp ../bin Main 64-tuxette.png lambda 20
+         ou
+      java -cp bin Main test_image/64-tuxette.png Lambda 20
 
 
 ### Exemple de sorti 
-pour l'image '64-tuxette.png' avec la methode 'lambda' et parametre '20':
+      pour l'image '64-tuxette.png' avec la methode 'lambda' et parametre '20':
 
-   ---Fichiers générés ---
-      - Image compressée : 64-tuxette_lambda20.png
-      - Arbre R-Quadtree : 64-tuxette_lambda20R.txt
-      - Arbre AVL :        64-tuxette_lambda20AVL.txt
-   
-   ---Console---- (Mode Batch)
-      Fichier entré  :  64-tuxette.png
-      Méthode        :  lambda
-      Paramètre      : 20
+         ---Fichiers générés ---
+            - Image compressée : 64-tuxette_lambda20.png
+            - Arbre R-Quadtree : 64-tuxette_lambda20R.txt
+            - Arbre AVL :        64-tuxette_lambda20AVL.txt
+         
+         ---Console---- (Mode Batch)
+            Fichier entré  :  64-tuxette.png
+            Méthode        :  lambda
+            Paramètre      : 20
 
-      Image chargée  : 64x64 pixels 
-      R-Quadtree construit avec 3040 feuilles
+            Image chargée  : 64x64 pixels 
+            R-Quadtree construit avec 3040 feuilles
 
-      --- Application de la compression ---
-      Compression lambda appliquée avec λ=20 
-      Nombre de feuilles après compression :1135
+            --- Application de la compression ---
+            Compression lambda appliquée avec λ=20 
+            Nombre de feuilles après compression :1135
 
-   ---Metriques de comparaison---
-      Qualité (EQM) 75.78
-      Ratio de poids :57.87%
-
-
+         ---Metriques de comparaison---
+            Qualité (EQM) 75.78
+            Ratio de poids :57.87%
 
 
-## 📊 Complexités
+##  Compilation et Execution mode iteratif
+# COMPILATION
+
+      javac -source 1.8 -target 1.8 -d /JeanAbakar/bin /JeanAbakar/src/*.java
+            ou (si on est dans le dossier JeanAbakar ie cd JeanAbakar)
+      javac -source 1.8 -target 1.8 -d bin src/*.java 
+            ou
+      javac -d bin src/*.java
+
+# Exection
+      java -classpath bin/ Main 
+      java -cp bin Main 
+
+# puis dans le menu 
+      votre choix : 1
+      Nom du fichier PNG: test_image/2.png <- Chemin complet necessaire 
+
+### Exemple de sorti
+
+      <--- Menu Principal --->
+      1.  Construire R-Quadtree depuis une image
+      2.  Appliquer compression Lambda
+      3.  Appliquer compression Phi
+      4.  Sauvegarder R-Quadtree en PNG
+      5.  Sauvegarder R-Quadtree en texte
+      6.  Comparer deux fichiers PNG
+      7.  Construire AVL depuis une image
+      8.  Construire AVL depuis R-Quadtree
+      9.  Sauvegarder AVL en texte
+      10. Rechercher une couleur dans AVL
+      11. Ajouter une couleur à AVL
+      12. Supprimer une couleur de AVL
+      0.  Quitter
+      Votre choix: 1
+      Nom du fichier PNG: test_image/2.png
+      R-Quadtree construit avec 4 feuilles
+      ... 
+
+
+
+
+##  Complexités
 
 ### R-Quadtree
 - Construction: O(n²) où n = taille de l'image
@@ -84,13 +129,3 @@ pour l'image '64-tuxette.png' avec la methode 'lambda' et parametre '20':
 - Luminance: L = 0.2126*R + 0.7152*G + 0.0722*B
 - Couleur moyenne: (R1+R2+R3+R4)/4, (G1+G2+G3+G4)/4, (B1+B2+B3+B4)/4
 - Dégradation: X = max(|Lm - Li|) pour i=1,2,3,4
-
-
-*********************
-### Mode Interactif (Menu)
-bash
-java -classpath /app/bin Main
-
-### Mode Batch (Ligne de commande)
-bash
-java -classpath /app/bin Main <fichier.png> <Lambda|Phi> <parametre>
